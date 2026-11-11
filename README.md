@@ -35,7 +35,15 @@ agent = create_agent(model, tools=tools, middleware=[ActeraMiddleware()])
 
 Every tool call the agent makes now goes to Actera first, from `invoke`, `stream` and their async versions.
 
+The middleware starts in monitoring: each call is recorded with the answer its policies give, and every call still runs. Look at the decisions, write your policies, then apply them:
+
+```python
+ActeraMiddleware(mode="enforcing")
+```
+
 ## The three results
+
+In enforcing mode:
 
 | Actera's answer | What happens |
 | --- | --- |
@@ -83,7 +91,7 @@ Each interrupt carries the decision ID and a link to review it. `resume_command`
 | `api_key` | `ACTERA_API_KEY` | | The agent's API key. |
 | `agent_id` | `ACTERA_AGENT_ID` | from the key | The agent's ID. Only needed to check the key belongs to the agent you expect. |
 | `base_url` | `ACTERA_BASE_URL` | `https://app.actera.dev` | The Actera API address. |
-| `mode` | `ACTERA_MODE` | `enforcing` | `monitoring` records each answer and lets every call run. Use it to see what your agent does before blocking anything. |
+| `mode` | `ACTERA_MODE` | `monitoring` | `monitoring` records each answer and lets every call run. `enforcing` applies the answers. |
 | `on_error` | `ACTERA_EVALUATION_FAILURE` | `block` | What happens in enforcing mode when Actera cannot evaluate a call. `block` refuses it (fail closed). `allow` runs it (fail open). |
 | `on_approval` | | `wait` | `wait` or `interrupt`. See above. |
 | `approval_timeout` | | `600` | Seconds to wait for a reviewer before refusing the call. |
@@ -91,15 +99,19 @@ Each interrupt carries the decision ID and a link to review it. `resume_command`
 | `capture` | | `tool-inputs` | `metadata` sends argument names without their values. |
 | `timeout` | | `8` | Seconds allowed for each request to Actera. |
 
-`on_error` covers calls Actera could not evaluate: an outage, a timeout, a rejected key or an unreadable response. It never releases a call Actera blocked or is holding.
+`on_error` covers calls Actera could not evaluate: an outage, a timeout, a rejected key or an unreadable response. It never releases a call Actera blocked or is holding. In monitoring mode every call runs whatever happens.
 
 ## What is sent to Actera
 
-The tool's name, its arguments, the tool call ID and the thread ID if the run has one. Values under field names that look sensitive (`password`, `token`, `api_key`, `secret`, `authorization` and similar) are replaced with `[redacted]` before they leave your process. Arguments over 512 KiB are not sent, and in enforcing mode that call is handled as one Actera could not evaluate. Tool results are never sent.
+The tool's name, its arguments, the tool call ID and the thread ID if the run has one. Tool results are never sent.
+
+Values under field names that look sensitive (`password`, `token`, `api_key`, `secret`, `authorization` and similar) are replaced with `[redacted]` before they leave your process. Other values are sent as they are: the middleware does not scan them for secrets. If your tools take secrets in other fields, send argument names only with `capture="metadata"`.
+
+Arguments over 512 KiB are not sent, and in enforcing mode that call is handled as one Actera could not evaluate.
 
 ## Demo
 
-`examples/demo.py` runs an agent that looks up an order, tries to delete a customer and issues a refund of 250. With the policy above assigned to the agent, the first call runs, the second is blocked, and the third waits for approval and then runs.
+`examples/demo.py` runs an agent in enforcing mode that looks up an order, tries to delete a customer and issues a refund of 250. With the policy above assigned to the agent, the first call runs, the second is blocked, and the third waits for approval and then runs.
 
 ```sh
 ACTERA_API_KEY=actera_... python examples/demo.py

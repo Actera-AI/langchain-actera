@@ -74,6 +74,10 @@ class ActeraMiddleware(AgentMiddleware):
     then runs or is refused. Every call is recorded in Actera as a decision,
     together with what happened when the tool ran.
 
+    The middleware starts in monitoring: each call is recorded with the answer
+    its policies give, and every call runs. Pass `mode="enforcing"` to apply
+    the answers.
+
     Example:
         ```python
         from langchain.agents import create_agent
@@ -88,9 +92,9 @@ class ActeraMiddleware(AgentMiddleware):
             identifies the agent. Defaults to `ACTERA_AGENT_ID`.
         base_url: The Actera API address. Defaults to `ACTERA_BASE_URL`, then
             `https://app.actera.dev`.
-        mode: `"enforcing"` applies Actera's answer. `"monitoring"` records what
-            the answer would have been and lets every call run. Defaults to
-            `ACTERA_MODE`, then `"enforcing"`.
+        mode: `"monitoring"` records Actera's answer and lets every call run.
+            `"enforcing"` applies the answer. Defaults to `ACTERA_MODE`, then
+            `"monitoring"`.
         on_error: What to do in enforcing mode when Actera cannot evaluate a
             call: `"block"` refuses it (fail closed), `"allow"` runs it (fail
             open). Defaults to `ACTERA_EVALUATION_FAILURE`, then `"block"`.
@@ -102,7 +106,8 @@ class ActeraMiddleware(AgentMiddleware):
             call is refused.
         poll_interval: Seconds between checks while waiting.
         capture: `"tool-inputs"` sends the call's arguments, with values under
-            sensitive field names masked. `"metadata"` sends argument names only.
+            sensitive field names masked. Values are not scanned for secrets.
+            `"metadata"` sends argument names only.
         timeout: Seconds allowed for each request to Actera.
     """
 
@@ -123,7 +128,7 @@ class ActeraMiddleware(AgentMiddleware):
         super().__init__()
         self.tools = []
         env = os.environ
-        self._enforcing = _choice(mode or env.get("ACTERA_MODE"), ("enforcing", "monitoring"), "mode") == "enforcing"
+        self._enforcing = _choice(mode or env.get("ACTERA_MODE"), ("monitoring", "enforcing"), "mode") == "enforcing"
         self._fail_open = _choice(on_error or env.get("ACTERA_EVALUATION_FAILURE"), ("block", "allow"), "on_error") == "allow"
         self._interrupts = _choice(on_approval, ("wait", "interrupt"), "on_approval") == "interrupt"
         self._capture: Capture = _choice(capture, ("tool-inputs", "metadata"), "capture")  # type: ignore[assignment]

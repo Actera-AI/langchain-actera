@@ -69,7 +69,7 @@ def scripted_model() -> ScriptedModel:
                 turn("lookup_order", order_id="A-1042"),
                 turn("delete_customer", customer_id="C-77"),
                 turn("refund_order", order_id="A-1042", amount=250),
-                AIMessage(content="The order was looked up, the deletion was refused and the refund went through."),
+                AIMessage(content="All three steps were attempted. Each result is shown above."),
             ]
         )
     )
@@ -105,6 +105,7 @@ def main() -> None:
     logging.getLogger("langchain_actera").addHandler(HeldCalls())
 
     actera = ActeraMiddleware(
+        mode="enforcing",
         on_approval="interrupt" if args.interrupt else "wait",
         approval_timeout=args.timeout,
     )

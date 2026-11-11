@@ -149,6 +149,7 @@ class Agent:
 
         checkpointer = options.pop("checkpointer", None)
         options.setdefault("poll_interval", 0.01)
+        options.setdefault("mode", "enforcing")
         self.middleware = ActeraMiddleware(api_key=API_KEY, base_url=BASE_URL, **options)
         self.middleware._client = ActeraClient(
             api_key=API_KEY,

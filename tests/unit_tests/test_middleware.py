@@ -331,23 +331,33 @@ def test_settings_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("ACTERA_API_KEY", API_KEY)
     monkeypatch.setenv("ACTERA_AGENT_ID", "support-agent")
     monkeypatch.setenv("ACTERA_BASE_URL", "http://localhost:8080")
-    monkeypatch.setenv("ACTERA_MODE", "monitoring")
+    monkeypatch.setenv("ACTERA_MODE", "enforcing")
     monkeypatch.setenv("ACTERA_EVALUATION_FAILURE", "allow")
 
     middleware = ActeraMiddleware()
 
     assert middleware._client.base_url == "http://localhost:8080"
     assert middleware._client.agent_id == "support-agent"
-    assert middleware._enforcing is False
+    assert middleware._enforcing is True
     assert middleware._fail_open is True
 
 
-def test_the_defaults_enforce_and_fail_closed() -> None:
+def test_the_defaults_monitor_and_fail_closed() -> None:
     middleware = ActeraMiddleware(api_key=API_KEY)
 
     assert middleware._client.base_url == "https://app.actera.dev"
-    assert middleware._enforcing is True
+    assert middleware._enforcing is False
     assert middleware._fail_open is False
+
+
+def test_a_new_middleware_blocks_nothing_until_it_is_set_to_enforce(fake: FakeActera) -> None:
+    agent = Agent(fake, [call("delete_customer", customer_id="C-9")], mode=None)
+
+    result = agent.invoke()
+
+    assert agent.ran == ["delete_customer:C-9"]
+    assert tool_message(result).content == "Deleted."
+    assert fake.decision_requests[0]["mode"] == "MONITORING"
 
 
 @pytest.mark.parametrize(
