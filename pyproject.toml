@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "langchain-actera"
+version = "0.1.0"
+description = "Actera middleware for LangChain agents: every tool call is allowed, blocked or held for a person's approval, and recorded as a decision."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Actera", email = "hello@actera.dev" }]
+keywords = ["langchain", "langgraph", "middleware", "agents", "approvals", "policy", "governance"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+dependencies = [
+  "langchain>=1.0.0,<2.0.0",
+  "httpx>=0.27.0,<1.0.0",
+]
+
+[project.urls]
+Homepage = "https://actera.dev"
+Documentation = "https://docs.actera.dev"
+
+[dependency-groups]
+test = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["langchain_actera"]
+
+[tool.hatch.build.targets.sdist]
+include = ["langchain_actera", "tests", "examples", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
