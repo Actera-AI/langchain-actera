@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any
 
 import pytest
@@ -241,7 +242,18 @@ def test_a_decision_for_another_agent_is_not_trusted(fake: FakeActera) -> None:
 # Pausing the run instead of waiting inside the tool call
 
 
-@styles
+@pytest.mark.parametrize(
+    "style",
+    [
+        "sync",
+        pytest.param(
+            "async",
+            marks=pytest.mark.skipif(
+                sys.version_info < (3, 11), reason="LangGraph cannot interrupt async code before Python 3.11"
+            ),
+        ),
+    ],
+)
 async def test_interrupt_pauses_the_run_and_resumes_it_after_approval(fake: FakeActera, style: str) -> None:
     agent = Agent(
         fake,
@@ -315,6 +327,23 @@ def test_interrupt_without_a_checkpointer_waits_instead(fake: FakeActera, caplog
     assert "__interrupt__" not in result
     assert agent.ran == ["refund:A-1:40"]
     assert "needs an agent with a checkpointer" in caplog.text
+
+
+async def test_async_runs_wait_where_python_cannot_pause_them(
+    fake: FakeActera, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr("langchain_actera.middleware._ASYNC_CAN_PAUSE", False)  # As on Python 3.10.
+    fake.answer_after(2, "APPROVED")
+    agent = Agent(
+        fake, [call("refund", order_id="A-1", amount=40)], on_approval="interrupt", checkpointer=InMemorySaver()
+    )
+
+    with caplog.at_level(logging.WARNING, logger="langchain_actera"):
+        result = await agent.ainvoke(THREAD)
+
+    assert "__interrupt__" not in result
+    assert agent.ran == ["refund:A-1:40"]
+    assert "Python 3.11" in caplog.text
 
 
 def test_resume_command_refuses_a_result_actera_is_not_holding(fake: FakeActera) -> None:
