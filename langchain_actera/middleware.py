@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Iterable, Mapping
@@ -36,6 +37,9 @@ OnApproval = Literal["wait", "interrupt"]
 _RELEASED = frozenset({"ALLOWED", "APPROVED"})
 _WAITING = frozenset({"PENDING_APPROVAL", "RECEIVED"})
 _INTERRUPT_TYPE = "actera_approval"
+# Before Python 3.11, asyncio does not carry LangGraph's run context into an
+# async tool call, so a LangGraph interrupt cannot be raised from one.
+_ASYNC_CAN_PAUSE = sys.version_info >= (3, 11)
 _SUMMARIES = {
     "SUCCESS": "LangChain reported that the tool call completed successfully.",
     "FAILURE": "LangChain reported that the tool call failed.",
@@ -105,7 +109,7 @@ class ActeraMiddleware(AgentMiddleware):
         on_approval: How to hold a call that needs approval. `"wait"` keeps the
             tool call waiting until a person answers. `"interrupt"` pauses the
             run with a LangGraph interrupt, which needs a checkpointer; resume
-            it with `resume_command`.
+            it with `resume_command`. Async runs on Python 3.10 wait instead.
         approval_timeout: Seconds to wait for a person. When they run out, the
             call is refused.
         poll_interval: Seconds between checks while waiting.
@@ -347,7 +351,7 @@ class ActeraMiddleware(AgentMiddleware):
         current = self._latest(decision, decision)
         if current["status"] not in _WAITING:
             return current
-        if self._pauses(call, current):
+        if self._pauses(call, current, can_pause=call.can_pause):
             while current["status"] in _WAITING:
                 interrupt(_interrupt_value(call, current))  # Pauses the run. Returns once it is resumed.
                 current = self._latest(decision, current)
@@ -362,7 +366,7 @@ class ActeraMiddleware(AgentMiddleware):
         current = await self._alatest(session, decision, decision)
         if current["status"] not in _WAITING:
             return current
-        if self._pauses(call, current):
+        if self._pauses(call, current, can_pause=call.can_pause and _ASYNC_CAN_PAUSE):
             while current["status"] in _WAITING:
                 interrupt(_interrupt_value(call, current))
                 current = await self._alatest(session, decision, current)
@@ -373,19 +377,20 @@ class ActeraMiddleware(AgentMiddleware):
             current = await self._alatest(session, decision, current)
         return current
 
-    def _pauses(self, call: _Call, decision: dict[str, Any]) -> bool:
+    def _pauses(self, call: _Call, decision: dict[str, Any], *, can_pause: bool) -> bool:
         logger.info(
             "Actera is holding tool call %s for approval (decision %s). Review it at %s",
             call.name,
             decision["id"],
             decision.get("review_url") or "the Needs approval page in Actera",
         )
-        if self._interrupts and not call.can_pause:
+        if self._interrupts and not can_pause:
             logger.warning(
-                "on_approval='interrupt' needs an agent with a checkpointer and a thread_id. "
+                "on_approval='interrupt' needs an agent with a checkpointer and a thread_id, "
+                "and Python 3.11 or later for async runs. "
                 "Waiting for the reviewer inside the tool call instead."
             )
-        return self._interrupts and call.can_pause
+        return self._interrupts and can_pause
 
     # A failed status check keeps the call held. Only Actera's answer releases it.
 

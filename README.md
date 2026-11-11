@@ -82,6 +82,8 @@ while "__interrupt__" in result:
     result = agent.invoke(actera.resume_command(result), config)
 ```
 
+Async runs (`ainvoke`, `astream`) need Python 3.11 or later to pause, because LangGraph cannot raise an interrupt from async code before that. On Python 3.10 they wait inside the tool call instead.
+
 Each interrupt carries the decision ID and a link to review it. `resume_command` waits for the reviewers, then returns the command that resumes the run. To resume from a job or another process, store the thread ID and resume it later the same way. On resume the middleware reads the decision from Actera again, so resuming early pauses the run again and only an approval recorded in Actera lets the tool run.
 
 ## Options
