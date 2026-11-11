@@ -12,16 +12,20 @@ import uuid
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
-from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
+from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import ToolMessage
 from langgraph.errors import GraphBubbleUp
 from langgraph.types import Command, interrupt
 
 from ._capture import Capture, capture_input
 from ._client import DEFAULT_BASE_URL, ActeraClient, ActeraError
+
+if TYPE_CHECKING:
+    # Only needed for type hints, and LangChain 1.0 keeps it in another module.
+    from langchain.agents.middleware import ToolCallRequest
 
 logger = logging.getLogger("langchain_actera")
 

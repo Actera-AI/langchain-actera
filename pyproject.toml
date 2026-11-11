@@ -30,6 +30,8 @@ dependencies = [
 [project.urls]
 Homepage = "https://actera.dev"
 Documentation = "https://docs.actera.dev"
+Repository = "https://github.com/Actera-AI/langchain-actera"
+Issues = "https://github.com/Actera-AI/langchain-actera/issues"
 
 [dependency-groups]
 test = [
@@ -41,7 +43,7 @@ test = [
 packages = ["langchain_actera"]
 
 [tool.hatch.build.targets.sdist]
-include = ["langchain_actera", "tests", "examples", "README.md", "LICENSE"]
+include = ["langchain_actera", "tests", "examples", "README.md", "LICENSE", "SECURITY.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

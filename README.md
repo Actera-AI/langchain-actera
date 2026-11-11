@@ -126,6 +126,8 @@ pip install -e . --group test
 pytest
 ```
 
+To release, set the version in `pyproject.toml`, merge, then push a matching `v` tag. The release workflow tests, builds and publishes that version to PyPI.
+
 ## Licence and contact
 
 Apache-2.0. Questions and problems: hello@actera.dev.
