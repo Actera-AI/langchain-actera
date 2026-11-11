@@ -53,6 +53,22 @@ jobs:
       - run: python -m build
       - run: python -m twine check --strict dist/*
     timeout-minutes: 10
+  # The one check branch protection requires: it passes only if every job above did.
+  ci-result:
+    if: ${{ always() }}
+    needs:
+      - test
+      - oldest-dependencies
+      - package
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every job to pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for result in $RESULTS; do test "$result" = success; done
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
